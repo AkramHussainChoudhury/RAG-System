@@ -1,4 +1,5 @@
 import time
+from pathlib import Path
 from src.loader import load_pdf
 from src.chunker import chunk_text
 from src.embedder import embed
@@ -11,20 +12,26 @@ logger = get_logger("pipeline")
 
 
 def build_index(pdf_path: str) -> VectorStore:
+    collection_name = Path(pdf_path).stem.lower()
+    store = VectorStore(collection_name)
+
+    if store.is_populated():
+        logger.info(f"=== '{collection_name}' already on disk — skipping rebuild ===")
+        return store
+
     t0 = time.time()
     logger.info(f"=== Building index: {pdf_path} ===")
 
     text = load_pdf(pdf_path)
     chunks = chunk_text(text)
     embeddings = embed(chunks)
-
-    store = VectorStore()
     store.add(chunks, embeddings)
+
     logger.info(f"=== Index ready in {time.time() - t0:.2f}s ===")
     return store
 
 
-def query(question: str, store: VectorStore, top_k: int = 3) -> str:
+def query(question: str, store: VectorStore, top_k: int = 5) -> str:
     logger.info(f"=== Query: {question} ===")
     t0 = time.time()
 

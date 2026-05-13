@@ -3,7 +3,7 @@ from src.tracer import get_logger
 
 logger = get_logger("generator")
 
-MODEL = "llama3.2:1b"
+MODEL = "llama3.2:3b"
 
 
 def generate(query: str, context_chunks: list[str]) -> str:

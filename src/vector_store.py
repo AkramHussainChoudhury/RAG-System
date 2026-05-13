@@ -1,26 +1,42 @@
 import numpy as np
+import chromadb
 from src.tracer import get_logger
 
 logger = get_logger("vector_store")
 
+PERSIST_DIR = ".chroma"
+
 
 class VectorStore:
-    def __init__(self):
-        self.chunks: list[str] = []
-        self.embeddings: np.ndarray = np.empty((0,))
+    def __init__(self, collection_name: str = "rag"):
+        self._client = chromadb.PersistentClient(path=PERSIST_DIR)
+        self._collection = self._client.get_or_create_collection(
+            name=collection_name,
+            metadata={"hnsw:space": "cosine"},
+        )
+        logger.info(f"ChromaDB collection '{collection_name}' — {self._collection.count()} chunks on disk")
+
+    def is_populated(self) -> bool:
+        return self._collection.count() > 0
 
     def add(self, chunks: list[str], embeddings: np.ndarray) -> None:
-        self.chunks = chunks
-        self.embeddings = embeddings
-        logger.info(f"Stored {len(chunks)} chunks, embedding dim={embeddings.shape[1]}")
+        ids = [str(i) for i in range(len(chunks))]
+        self._collection.add(
+            ids=ids,
+            documents=chunks,
+            embeddings=embeddings.tolist(),
+        )
+        logger.info(f"Stored {len(chunks)} chunks → ChromaDB at '{PERSIST_DIR}'")
 
     def search(self, query_embedding: np.ndarray, top_k: int = 3) -> list[tuple[str, float]]:
-        chunk_norms = np.linalg.norm(self.embeddings, axis=1)
-        query_norm = np.linalg.norm(query_embedding)
-        denom = chunk_norms * query_norm
-        scores = np.where(denom > 0, self.embeddings @ query_embedding / denom, 0.0)
-
-        top_indices = np.argsort(scores)[::-1][:top_k]
-        results = [(self.chunks[i], float(scores[i])) for i in top_indices]
-        logger.info(f"Top-{top_k} scores: {[round(s, 3) for _, s in results]}")
-        return results
+        results = self._collection.query(
+            query_embeddings=[query_embedding.tolist()],
+            n_results=top_k,
+            include=["documents", "distances"],
+        )
+        # ChromaDB returns cosine distance (0=identical, 2=opposite); convert to similarity
+        docs = results["documents"][0]
+        distances = results["distances"][0]
+        output = [(doc, 1.0 - dist) for doc, dist in zip(docs, distances)]
+        logger.info(f"Top-{top_k} scores: {[round(s, 3) for _, s in output]}")
+        return output
