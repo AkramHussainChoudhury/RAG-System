@@ -24,33 +24,34 @@ RAG-System/
 ├── src/
 │   ├── tracer.py       ← console logging across all steps
 │   ├── loader.py       ← extract text from PDFs (pypdf)
-│   ├── chunker.py      ← split text into fixed-size overlapping chunks
+│   ├── chunker.py      ← split text into semantic chunks (nltk + cosine similarity)
 │   ├── embedder.py     ← convert text to vectors (sentence-transformers)
-│   ├── vector_store.py ← store embeddings, search by cosine similarity
+│   ├── vector_store.py ← persist embeddings and search (ChromaDB)
 │   ├── retriever.py    ← embed query and find top-k matching chunks
 │   ├── generator.py    ← send retrieved chunks + question to Ollama
 │   └── pipeline.py     ← wires all steps together
-├── main.py             ← entry point (interactive Q&A loop)
+├── main.py             ← entry point (load / query / list commands)
 └── requirements.txt
 ```
 
-## Phase 1 Stack
+## Stack
 
-| Component | Tool | Why |
-|-----------|------|-----|
-| PDF parsing | `pypdf` | Lightweight, pure Python |
-| Embeddings | `sentence-transformers` (`all-MiniLM-L6-v2`) | Free, fully local, no API key |
-| Vector store | `numpy` (in-memory) | Makes cosine similarity math transparent |
-| Generation | `Ollama` (`llama3.2:1b`) | Free, runs locally, no API subscription needed |
-| Tracing | Python `logging` | Zero dependencies, see every pipeline step |
+| Component | Phase 1 | Phase 2 |
+|-----------|---------|---------|
+| Chunking | Fixed-size (512 chars, 50 overlap) | Semantic (nltk + cosine similarity) |
+| Vector store | numpy in-memory | ChromaDB (persistent, per-PDF collections) |
+| Generation | `llama3.2:1b` | `llama3.2:3b` |
+| Embeddings | `all-MiniLM-L6-v2` | `all-MiniLM-L6-v2` |
+| PDF parsing | `pypdf` | `pypdf` |
+| Tracing | Python `logging` | Python `logging` |
 
 ## Requirements
 
 - Python 3.9+
-- [Ollama](https://ollama.com) installed and running with `llama3.2:1b` pulled:
+- [Ollama](https://ollama.com) installed and running with `llama3.2:3b` pulled:
 
 ```bash
-ollama pull llama3.2:1b
+ollama pull llama3.2:3b
 ```
 
 ## Setup
@@ -73,36 +74,22 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-> On first run, `sentence-transformers` will automatically download the `all-MiniLM-L6-v2` model (~90 MB) from Hugging Face. No account or token needed.
-
 ## Running
 
-Drop any text-based PDF into the `data/` folder, then:
-
 ```bash
-python main.py data/your-file.pdf
+# Index a PDF (run once per document)
+python main.py load data/your-file.pdf
+
+# Ask questions
+python main.py query your-file
+
+# See all indexed documents
+python main.py list
 ```
 
-Example session:
+> On first run, `sentence-transformers` downloads `all-MiniLM-L6-v2` (~90 MB) from Hugging Face automatically. No account or token needed.
 
-```
-10:32:01 [pipeline] === Building index: data/paper.pdf ===
-10:32:01 [loader]   Total extracted: 42,301 chars from 12 pages
-10:32:01 [chunker]  Chunked into 87 chunks (size=512, overlap=50)
-10:32:04 [embedder] Embedded 87 texts → shape (87, 384)
-10:32:04 [pipeline] === Index ready in 3.42s ===
+## Known Limitations
 
-RAG ready. Ask questions about your PDF (type 'quit' to exit).
-
-Q: What is the main contribution of this paper?
-A: The main contribution is ...
-
-Q: quit
-```
-
-## Known Limitations (Phase 1)
-
-- **Scanned / image-based PDFs** — pypdf can only read text-based PDFs. OCR support is planned for a later phase.
-- **Fixed-size chunking** — can split sentences mid-thought. Semantic chunking comes in a later phase.
-- **In-memory store** — index is rebuilt every run. Persistent vector DB comes in a later phase.
-- **Small model** — `llama3.2:1b` is fast but limited in quality. Swap the model name in `src/generator.py` for a larger Ollama model.
+- **Scanned / image-based PDFs** — pypdf can only read text-based PDFs
+- **Single-document queries** — each session searches one collection; cross-document search is a future upgrade
