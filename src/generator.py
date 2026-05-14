@@ -1,11 +1,14 @@
-import ollama
+from langchain_ollama import ChatOllama
+from langsmith import traceable
 from src.tracer import get_logger
 
 logger = get_logger("generator")
 
 MODEL = "llama3.2:3b"
+_llm = ChatOllama(model=MODEL)
 
 
+@traceable
 def generate(query: str, context_chunks: list[str]) -> str:
     context = "\n\n---\n\n".join(
         f"[Chunk {i+1}]\n{chunk}" for i, chunk in enumerate(context_chunks)
@@ -19,8 +22,5 @@ def generate(query: str, context_chunks: list[str]) -> str:
     )
 
     logger.info(f"Sending {len(context_chunks)} chunks to {MODEL}")
-    response = ollama.chat(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return response["message"]["content"]
+    response = _llm.invoke(prompt)
+    return response.content

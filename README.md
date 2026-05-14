@@ -36,14 +36,15 @@ RAG-System/
 
 ## Stack
 
-| Component | Phase 1 | Phase 2 |
-|-----------|---------|---------|
-| Chunking | Fixed-size (512 chars, 50 overlap) | Semantic (nltk + cosine similarity) |
-| Vector store | numpy in-memory | ChromaDB (persistent, per-PDF collections) |
-| Generation | `llama3.2:1b` | `llama3.2:3b` |
-| Embeddings | `all-MiniLM-L6-v2` | `all-MiniLM-L6-v2` |
-| PDF parsing | `pypdf` | `pypdf` |
-| Tracing | Python `logging` | Python `logging` |
+| Component | Phase 1 | Phase 2 | Phase 3 |
+|-----------|---------|---------|---------|
+| Chunking | Fixed-size (512 chars, 50 overlap) | Semantic (nltk + cosine similarity) | Semantic |
+| Vector store | numpy in-memory | ChromaDB persistent | ChromaDB persistent |
+| Generation | `llama3.2:1b` | `llama3.2:3b` | `llama3.2:3b` |
+| LLM interface | `ollama` direct | `ollama` direct | `langchain-ollama` |
+| Tracing | Python `logging` | Python `logging` | LangSmith |
+| Embeddings | `all-MiniLM-L6-v2` | `all-MiniLM-L6-v2` | `all-MiniLM-L6-v2` |
+| PDF parsing | `pypdf` | `pypdf` | `pypdf` |
 
 ## Requirements
 
@@ -52,6 +53,14 @@ RAG-System/
 
 ```bash
 ollama pull llama3.2:3b
+```
+
+- [LangSmith](https://smith.langchain.com) account and API key. Add to a `.env` file in the project root:
+
+```
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=your_api_key_here
+LANGCHAIN_PROJECT=rag-system
 ```
 
 ## Setup

@@ -1,6 +1,9 @@
 import sys
 import chromadb
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 from src.pipeline import build_index, query
 from src.vector_store import VectorStore, PERSIST_DIR
 

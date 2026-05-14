@@ -1,5 +1,6 @@
 import time
 from pathlib import Path
+from langsmith import traceable
 from src.loader import load_pdf
 from src.chunker import chunk_text
 from src.embedder import embed
@@ -31,6 +32,7 @@ def build_index(pdf_path: str) -> VectorStore:
     return store
 
 
+@traceable
 def query(question: str, store: VectorStore, top_k: int = 5) -> str:
     logger.info(f"=== Query: {question} ===")
     t0 = time.time()
