@@ -7,6 +7,7 @@ from src.embedder import embed
 from src.vector_store import VectorStore
 from src.bm25_store import BM25Store
 from src.retriever import retrieve
+from src.reranker import rerank
 from src.generator import generate
 from src.tracer import get_logger
 
@@ -34,12 +35,14 @@ def build_index(pdf_path: str) -> VectorStore:
 
 
 @traceable
-def query(question: str, store: VectorStore, bm25: BM25Store, top_k: int = 5) -> str:
+def query(question: str, store: VectorStore, bm25: BM25Store, top_k: int = 3) -> str:
     logger.info(f"=== Query: {question} ===")
     t0 = time.time()
 
-    results = retrieve(question, store, bm25, top_k=top_k)
-    context_chunks = [chunk for chunk, _ in results]
+    candidates = retrieve(question, store, bm25, top_k=10)
+    candidate_chunks = [chunk for chunk, _ in candidates]
+    reranked = rerank(question, candidate_chunks, top_k=top_k)
+    context_chunks = [chunk for chunk, _ in reranked]
     answer = generate(question, context_chunks)
 
     logger.info(f"=== Done in {time.time() - t0:.2f}s ===")

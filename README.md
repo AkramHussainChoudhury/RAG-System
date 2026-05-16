@@ -13,7 +13,7 @@ RAG is a technique that lets a language model answer questions about your own do
 ```
 Your PDF → chunks → embeddings → vector store
                                       ↑
-Your question → embed → search ───────┘ → top chunks → LLM → answer
+Your question → embed → search ───────┘ → top chunks → reranker → LLM → answer
 ```
 
 ## Project Structure
@@ -29,6 +29,7 @@ RAG-System/
 │   ├── vector_store.py ← persist embeddings and search (ChromaDB)
 │   ├── bm25_store.py   ← keyword search index (BM25)
 │   ├── retriever.py    ← hybrid search with reciprocal rank fusion
+│   ├── reranker.py     ← cross-encoder reranking (ms-marco-MiniLM-L-6-v2)
 │   ├── generator.py    ← send retrieved chunks + question to Ollama
 │   ├── tools.py        ← wraps retriever as a LangChain tool for the agent
 │   ├── agent.py        ← LangGraph ReAct agent with document search tool
@@ -39,15 +40,16 @@ RAG-System/
 
 ## Stack
 
-| Component | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 |
-|-----------|---------|---------|---------|---------|---------|
-| Chunking | Fixed-size | Semantic | Semantic | Semantic | Semantic |
-| Vector store | numpy in-memory | ChromaDB | ChromaDB | ChromaDB | ChromaDB |
-| Retrieval | Semantic only | Semantic only | Semantic only | Semantic only | Hybrid (semantic + BM25 + RRF) |
-| Generation | `llama3.2:1b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` |
-| LLM interface | `ollama` direct | `ollama` direct | `langchain-ollama` | `langchain-ollama` | `langchain-ollama` |
-| Tracing | Python `logging` | Python `logging` | LangSmith | LangSmith | LangSmith |
-| Agent | — | — | — | LangGraph ReAct | LangGraph ReAct |
+| Component | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 | Phase 6 |
+|-----------|---------|---------|---------|---------|---------|---------|
+| Chunking | Fixed-size | Semantic | Semantic | Semantic | Semantic | Semantic |
+| Vector store | numpy in-memory | ChromaDB | ChromaDB | ChromaDB | ChromaDB | ChromaDB |
+| Retrieval | Semantic only | Semantic only | Semantic only | Semantic only | Hybrid (semantic + BM25 + RRF) | Hybrid + Reranking |
+| Reranking | — | — | — | — | — | `ms-marco-MiniLM-L-6-v2` |
+| Generation | `llama3.2:1b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` |
+| LLM interface | `ollama` direct | `ollama` direct | `langchain-ollama` | `langchain-ollama` | `langchain-ollama` | `langchain-ollama` |
+| Tracing | Python `logging` | Python `logging` | LangSmith | LangSmith | LangSmith | LangSmith |
+| Agent | — | — | — | LangGraph ReAct | LangGraph ReAct | LangGraph ReAct |
 
 ## Requirements
 
@@ -102,7 +104,7 @@ python main.py agent your-file
 python main.py list
 ```
 
-> On first run, `sentence-transformers` downloads `all-MiniLM-L6-v2` (~90 MB) from Hugging Face automatically. No account or token needed.
+> On first run, `sentence-transformers` downloads embedding and reranker models (~170MB total) from Hugging Face automatically. No account or token needed.
 
 ## Known Limitations
 
