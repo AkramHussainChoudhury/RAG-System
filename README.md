@@ -29,22 +29,23 @@ RAG-System/
 │   ├── vector_store.py ← persist embeddings and search (ChromaDB)
 │   ├── retriever.py    ← embed query and find top-k matching chunks
 │   ├── generator.py    ← send retrieved chunks + question to Ollama
+│   ├── tools.py        ← wraps retriever as a LangChain tool for the agent
+│   ├── agent.py        ← LangGraph ReAct agent with document search tool
 │   └── pipeline.py     ← wires all steps together
-├── main.py             ← entry point (load / query / list commands)
+├── main.py             ← entry point (load / query / agent / list commands)
 └── requirements.txt
 ```
 
 ## Stack
 
-| Component | Phase 1 | Phase 2 | Phase 3 |
-|-----------|---------|---------|---------|
-| Chunking | Fixed-size (512 chars, 50 overlap) | Semantic (nltk + cosine similarity) | Semantic |
-| Vector store | numpy in-memory | ChromaDB persistent | ChromaDB persistent |
-| Generation | `llama3.2:1b` | `llama3.2:3b` | `llama3.2:3b` |
-| LLM interface | `ollama` direct | `ollama` direct | `langchain-ollama` |
-| Tracing | Python `logging` | Python `logging` | LangSmith |
-| Embeddings | `all-MiniLM-L6-v2` | `all-MiniLM-L6-v2` | `all-MiniLM-L6-v2` |
-| PDF parsing | `pypdf` | `pypdf` | `pypdf` |
+| Component | Phase 1 | Phase 2 | Phase 3 | Phase 4 |
+|-----------|---------|---------|---------|---------|
+| Chunking | Fixed-size | Semantic | Semantic | Semantic |
+| Vector store | numpy in-memory | ChromaDB | ChromaDB | ChromaDB |
+| Generation | `llama3.2:1b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` |
+| LLM interface | `ollama` direct | `ollama` direct | `langchain-ollama` | `langchain-ollama` |
+| Tracing | Python `logging` | Python `logging` | LangSmith | LangSmith |
+| Agent | — | — | — | LangGraph ReAct |
 
 ## Requirements
 
@@ -89,8 +90,11 @@ pip install -r requirements.txt
 # Index a PDF (run once per document)
 python main.py load data/your-file.pdf
 
-# Ask questions
+# Ask questions (direct RAG pipeline)
 python main.py query your-file
+
+# Ask questions (ReAct agent — decides when to search)
+python main.py agent your-file
 
 # See all indexed documents
 python main.py list
@@ -102,3 +106,4 @@ python main.py list
 
 - **Scanned / image-based PDFs** — pypdf can only read text-based PDFs
 - **Single-document queries** — each session searches one collection; cross-document search is a future upgrade
+- **Agent tool calling** — small local models (3b) can be unreliable at tool calling; a larger model or cloud API (Groq) improves reliability
