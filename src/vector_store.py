@@ -28,6 +28,10 @@ class VectorStore:
         )
         logger.info(f"Stored {len(chunks)} chunks → ChromaDB at '{PERSIST_DIR}'")
 
+    def get_all_chunks(self) -> list[str]:
+        result = self._collection.get(include=["documents"])
+        return result["documents"]
+
     def search(self, query_embedding: np.ndarray, top_k: int = 3) -> list[tuple[str, float]]:
         results = self._collection.query(
             query_embeddings=[query_embedding.tolist()],

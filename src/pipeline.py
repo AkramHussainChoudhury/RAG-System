@@ -5,6 +5,7 @@ from src.loader import load_pdf
 from src.chunker import chunk_text
 from src.embedder import embed
 from src.vector_store import VectorStore
+from src.bm25_store import BM25Store
 from src.retriever import retrieve
 from src.generator import generate
 from src.tracer import get_logger
@@ -33,11 +34,11 @@ def build_index(pdf_path: str) -> VectorStore:
 
 
 @traceable
-def query(question: str, store: VectorStore, top_k: int = 5) -> str:
+def query(question: str, store: VectorStore, bm25: BM25Store, top_k: int = 5) -> str:
     logger.info(f"=== Query: {question} ===")
     t0 = time.time()
 
-    results = retrieve(question, store, top_k=top_k)
+    results = retrieve(question, store, bm25, top_k=top_k)
     context_chunks = [chunk for chunk, _ in results]
     answer = generate(question, context_chunks)
 

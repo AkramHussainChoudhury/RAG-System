@@ -27,7 +27,8 @@ RAG-System/
 │   ├── chunker.py      ← split text into semantic chunks (nltk + cosine similarity)
 │   ├── embedder.py     ← convert text to vectors (sentence-transformers)
 │   ├── vector_store.py ← persist embeddings and search (ChromaDB)
-│   ├── retriever.py    ← embed query and find top-k matching chunks
+│   ├── bm25_store.py   ← keyword search index (BM25)
+│   ├── retriever.py    ← hybrid search with reciprocal rank fusion
 │   ├── generator.py    ← send retrieved chunks + question to Ollama
 │   ├── tools.py        ← wraps retriever as a LangChain tool for the agent
 │   ├── agent.py        ← LangGraph ReAct agent with document search tool
@@ -38,14 +39,15 @@ RAG-System/
 
 ## Stack
 
-| Component | Phase 1 | Phase 2 | Phase 3 | Phase 4 |
-|-----------|---------|---------|---------|---------|
-| Chunking | Fixed-size | Semantic | Semantic | Semantic |
-| Vector store | numpy in-memory | ChromaDB | ChromaDB | ChromaDB |
-| Generation | `llama3.2:1b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` |
-| LLM interface | `ollama` direct | `ollama` direct | `langchain-ollama` | `langchain-ollama` |
-| Tracing | Python `logging` | Python `logging` | LangSmith | LangSmith |
-| Agent | — | — | — | LangGraph ReAct |
+| Component | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 |
+|-----------|---------|---------|---------|---------|---------|
+| Chunking | Fixed-size | Semantic | Semantic | Semantic | Semantic |
+| Vector store | numpy in-memory | ChromaDB | ChromaDB | ChromaDB | ChromaDB |
+| Retrieval | Semantic only | Semantic only | Semantic only | Semantic only | Hybrid (semantic + BM25 + RRF) |
+| Generation | `llama3.2:1b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` |
+| LLM interface | `ollama` direct | `ollama` direct | `langchain-ollama` | `langchain-ollama` | `langchain-ollama` |
+| Tracing | Python `logging` | Python `logging` | LangSmith | LangSmith | LangSmith |
+| Agent | — | — | — | LangGraph ReAct | LangGraph ReAct |
 
 ## Requirements
 

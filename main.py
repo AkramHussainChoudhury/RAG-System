@@ -4,9 +4,18 @@ from pathlib import Path
 from dotenv import load_dotenv
 from src.pipeline import build_index, query
 from src.vector_store import VectorStore, PERSIST_DIR
+from src.bm25_store import BM25Store
 from src import tools as _tools
 
 load_dotenv()
+
+
+def _load_stores(collection_name: str) -> tuple[VectorStore, BM25Store]:
+    store = VectorStore(collection_name)
+    bm25 = BM25Store()
+    if store.is_populated():
+        bm25.build(store.get_all_chunks())
+    return store, bm25
 
 
 def cmd_load(pdf_path: str) -> None:
@@ -16,7 +25,7 @@ def cmd_load(pdf_path: str) -> None:
 
 
 def cmd_query(collection_name: str) -> None:
-    store = VectorStore(collection_name)
+    store, bm25 = _load_stores(collection_name)
     if not store.is_populated():
         print(f"No index found for '{collection_name}'. Run: python main.py load <path_to_pdf>")
         sys.exit(1)
@@ -26,18 +35,18 @@ def cmd_query(collection_name: str) -> None:
         question = input("Q: ").strip()
         if not question or question.lower() in ("quit", "exit", "q"):
             break
-        answer = query(question, store)
+        answer = query(question, store, bm25)
         print(f"\nA: {answer}\n")
 
 
 def cmd_agent(collection_name: str) -> None:
     from src.agent import run_agent
-    store = VectorStore(collection_name)
+    store, bm25 = _load_stores(collection_name)
     if not store.is_populated():
         print(f"No index found for '{collection_name}'. Run: python main.py load <path_to_pdf>")
         sys.exit(1)
 
-    _tools.set_store(store)
+    _tools.set_store(store, bm25)
     print(f"\nAgent ready ({collection_name}). Ask questions (type 'quit' to exit).\n")
     while True:
         question = input("Q: ").strip()
