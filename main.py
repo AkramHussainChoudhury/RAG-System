@@ -56,6 +56,20 @@ def cmd_agent(collection_name: str) -> None:
         print(f"\nA: {answer}\n")
 
 
+def cmd_evaluate(collection_name: str) -> None:
+    from src.evaluator import run_eval
+    store, bm25 = _load_stores(collection_name)
+    if not store.is_populated():
+        print(f"No index found for '{collection_name}'. Run: python main.py load <path_to_pdf>")
+        sys.exit(1)
+    dataset_path = f"data/{collection_name}_eval.json"
+    if not Path(dataset_path).exists():
+        print(f"No eval dataset found at '{dataset_path}'.")
+        print("Create a JSON file with 'question' and 'expected_answer' pairs.")
+        sys.exit(1)
+    run_eval(store, bm25, dataset_path)
+
+
 def cmd_list() -> None:
     client = chromadb.PersistentClient(path=PERSIST_DIR)
     collections = client.list_collections()
@@ -74,6 +88,7 @@ def main():
         print("  python main.py load <path_to_pdf>")
         print("  python main.py query <collection_name>")
         print("  python main.py agent <collection_name>")
+        print("  python main.py evaluate <collection_name>")
         print("  python main.py list")
         sys.exit(1)
 
@@ -86,6 +101,7 @@ def main():
         print("  python main.py load <path_to_pdf>")
         print("  python main.py query <collection_name>")
         print("  python main.py agent <collection_name>")
+        print("  python main.py evaluate <collection_name>")
         print("  python main.py list")
         sys.exit(1)
     elif command == "load":
@@ -94,8 +110,10 @@ def main():
         cmd_query(sys.argv[2])
     elif command == "agent":
         cmd_agent(sys.argv[2])
+    elif command == "evaluate":
+        cmd_evaluate(sys.argv[2])
     else:
-        print(f"Unknown command '{command}'. Use 'load', 'query', 'agent', or 'list'.")
+        print(f"Unknown command '{command}'. Use 'load', 'query', 'agent', 'evaluate', or 'list'.")
         sys.exit(1)
 
 

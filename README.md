@@ -20,7 +20,9 @@ Your question → embed → search ───────┘ → top chunks → r
 
 ```
 RAG-System/
-├── data/               ← drop your PDFs here (gitignored)
+├── data/
+│   ├── <your PDFs here>          ← gitignored
+│   └── <collection>_eval.json   ← eval question-answer pairs
 ├── src/
 │   ├── tracer.py       ← console logging across all steps
 │   ├── loader.py       ← extract text from PDFs (pypdf)
@@ -30,26 +32,28 @@ RAG-System/
 │   ├── bm25_store.py   ← keyword search index (BM25)
 │   ├── retriever.py    ← hybrid search with reciprocal rank fusion
 │   ├── reranker.py     ← cross-encoder reranking (ms-marco-MiniLM-L-6-v2)
+│   ├── evaluator.py    ← hit rate, MRR, and answer accuracy scoring
 │   ├── generator.py    ← send retrieved chunks + question to Ollama
 │   ├── tools.py        ← wraps retriever as a LangChain tool for the agent
 │   ├── agent.py        ← LangGraph ReAct agent with document search tool
 │   └── pipeline.py     ← wires all steps together
-├── main.py             ← entry point (load / query / agent / list commands)
+├── main.py             ← entry point (load / query / agent / evaluate / list)
 └── requirements.txt
 ```
 
 ## Stack
 
-| Component | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 | Phase 6 |
-|-----------|---------|---------|---------|---------|---------|---------|
-| Chunking | Fixed-size | Semantic | Semantic | Semantic | Semantic | Semantic |
-| Vector store | numpy in-memory | ChromaDB | ChromaDB | ChromaDB | ChromaDB | ChromaDB |
-| Retrieval | Semantic only | Semantic only | Semantic only | Semantic only | Hybrid (semantic + BM25 + RRF) | Hybrid + Reranking |
-| Reranking | — | — | — | — | — | `ms-marco-MiniLM-L-6-v2` |
-| Generation | `llama3.2:1b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` |
-| LLM interface | `ollama` direct | `ollama` direct | `langchain-ollama` | `langchain-ollama` | `langchain-ollama` | `langchain-ollama` |
-| Tracing | Python `logging` | Python `logging` | LangSmith | LangSmith | LangSmith | LangSmith |
-| Agent | — | — | — | LangGraph ReAct | LangGraph ReAct | LangGraph ReAct |
+| Component | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 | Phase 6 | Phase 7 |
+|-----------|---------|---------|---------|---------|---------|---------|---------|
+| Chunking | Fixed-size | Semantic | Semantic | Semantic | Semantic | Semantic | Semantic |
+| Vector store | numpy | ChromaDB | ChromaDB | ChromaDB | ChromaDB | ChromaDB | ChromaDB |
+| Retrieval | Semantic | Semantic | Semantic | Semantic | Hybrid + RRF | Hybrid + RRF | Hybrid + RRF |
+| Reranking | — | — | — | — | — | ms-marco-MiniLM | ms-marco-MiniLM |
+| Evaluation | — | — | — | — | — | — | Hit Rate, MRR, Accuracy |
+| Generation | `llama3.2:1b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` | `llama3.2:3b` |
+| LLM interface | `ollama` | `ollama` | `langchain-ollama` | `langchain-ollama` | `langchain-ollama` | `langchain-ollama` | `langchain-ollama` |
+| Tracing | logging | logging | LangSmith | LangSmith | LangSmith | LangSmith | LangSmith |
+| Agent | — | — | — | LangGraph ReAct | LangGraph ReAct | LangGraph ReAct | LangGraph ReAct |
 
 ## Requirements
 
@@ -100,11 +104,35 @@ python main.py query your-file
 # Ask questions (ReAct agent — decides when to search)
 python main.py agent your-file
 
+# Evaluate retrieval and answer quality
+python main.py evaluate your-file
+
 # See all indexed documents
 python main.py list
 ```
 
 > On first run, `sentence-transformers` downloads embedding and reranker models (~170MB total) from Hugging Face automatically. No account or token needed.
+
+## Evaluation
+
+Create a `data/<collection>_eval.json` file with question-answer pairs:
+
+```json
+[
+  {"question": "What is the patent number?", "expected_answer": "US 12,493,489 B2"},
+  {"question": "Who are the inventors?",     "expected_answer": "Ghouse"}
+]
+```
+
+Run `python main.py evaluate <collection>` to get:
+
+```
+=== Evaluation Results ===
+Questions   : 5
+Hit Rate    : 80.0%
+MRR         : 0.700
+Answer Acc  : 60.0%
+```
 
 ## Known Limitations
 
